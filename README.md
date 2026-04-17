@@ -1,39 +1,97 @@
-# Тестовое задание — AI Tools Specialist
+# GBC Analytics Dashboard
 
-Построй мини-дашборд заказов. Используй Claude Code CLI (или другой AI-инструмент).
+Решение тестового задания AI Tools Specialist.
 
-## Что нужно сделать
+## Ссылки
+- 🌐 Дашборд: https://gbc-analytics-dashboard-orpin.vercel.app
+- 📦 Репо: https://github.com/littleAvel/gbc-analytics-dashboard
 
-### Шаг 1: Создай аккаунты (всё бесплатно)
+## Архитектура
+```
+mock_orders.json → upload_to_crm.py → RetailCRM
+↓
+sync_to_supabase.py
+├→ Supabase (upsert)
+└→ Telegram Bot (если сумма > 50 000 ₸)
 
-- [RetailCRM](https://www.retailcrm.ru/) — демо-аккаунт
-- [Supabase](https://supabase.com/) — бесплатный проект
-- [Vercel](https://vercel.com/) — бесплатный аккаунт
-- [Telegram Bot](https://t.me/BotFather) — создай бота
+Next.js Dashboard ← Supabase (read via anon key + RLS)
+```
 
-### Шаг 2: Загрузи заказы в RetailCRM
+## Стек
+- Python 3.12, httpx, pydantic, supabase-py
+- Next.js 14, TypeScript, Tailwind CSS, Recharts
+- Supabase (PostgreSQL + RLS)
+- RetailCRM API v5
+- Telegram Bot API
+- Vercel
 
-В репо есть `mock_orders.json` — 50 тестовых заказов. Загрузи их в свой RetailCRM через API.
+## Как запустить локально
 
-### Шаг 3: RetailCRM → Supabase
+### Скрипты (Python)
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env.local  # заполнить ключи
+python scripts/upload_to_crm.py
+python scripts/sync_to_supabase.py
+```
 
-Напиши скрипт который забирает заказы из RetailCRM API и кладёт в Supabase.
+### Дашборд (Next.js)
+```bash
+cd dashboard
+npm install
+cp .env.example .env.local  # NEXT_PUBLIC_SUPABASE_URL и NEXT_PUBLIC_SUPABASE_ANON_KEY
+npm run dev
+```
 
-### Шаг 4: Дашборд
+## Тесты
 
-Сделай веб-страницу с графиком заказов (данные из Supabase). Задеплой на Vercel.
+```bash
+source venv/bin/activate
+python -m pytest tests/ -v
+```
 
-### Шаг 5: Telegram-бот
+Покрытие: парсинг и валидация заказов, маппинг справочников (orderType, orderMethod, statuses), upsert-логика с обработкой дубликатов, логика Telegram-алертов (порог 50000 ₸). Все внешние API замоканы — тесты работают offline.
 
-Настрой уведомление в Telegram когда в RetailCRM появляется заказ на сумму больше 50,000 ₸.
+---
+---
 
-## Результат
+## Что делал Claude Code
 
-- Ссылка на работающий дашборд (Vercel)
-- Ссылка на GitHub-репо с кодом
-- Скриншот уведомления из Telegram
-- В README репо опиши: какие промпты давал Claude Code, где застрял, как решил
+Тестовое выполнено с использованием Claude Code CLI.
 
-## Как сдать
+### 1. Загрузка заказов в RetailCRM
+Попросила Claude Code создать скрипт загрузки с pydantic-валидацией 
+и идемпотентностью через externalId. Первая версия упала на всех 50 
+заказах — orderType "eshop-individual" из mock_orders не существует 
+в демо-аккаунте. Проверила справочники через curl, замапила на 
+существующие значения.
 
-Отправь результат в Telegram: @DmitriyKrasnikov
+### 2. Идемпотентность
+При повторном запуске скрипт не переходил к edit — RetailCRM 
+возвращает 400 "Order already exists", а не 460 как ожидал Claude. 
+Поправила условие дубликата в upsert_order().
+
+### 3. Синхронизация RetailCRM → Supabase
+Скрипт забирает заказы из CRM, делает upsert в Supabase по 
+retailcrm_id, отправляет Telegram-алерт для заказов > 50000 ₸. 
+Алерт отправляется только для новых записей — повторный sync 
+не дублирует уведомления.
+
+### 4. Дашборд
+Next.js 14 с серверными компонентами и ISR (revalidate 60s). 
+Данные читаются из Supabase через anon key + RLS policy (read-only).
+
+Полный лог промптов: [prompts/claude_code_log.md](prompts/claude_code_log.md)
+
+
+## Скриншоты
+
+### Дашборд
+![Dashboard](screenshots/dashboard.png)
+
+### Telegram-алерт
+![Telegram](screenshots/telegram_alerts.png)
+
+![Telegram](screenshots/telegram_alerts1.png)

@@ -199,4 +199,39 @@ dashboard/
 
 ---
 
+### Prompt #6
+
+Контекст: тестовое задание AI Tools Specialist. В проекте два скрипта:
+- scripts/upload_to_crm.py — загрузка mock_orders.json в RetailCRM
+- scripts/sync_to_supabase.py — синхронизация RetailCRM → Supabase + TG алерт
+
+Создай тесты pytest в папке tests/:
+
+tests/
+  __init__.py
+  test_upload_to_crm.py
+  test_sync_to_supabase.py
+
+Что тестировать в test_upload_to_crm.py:
+1. Парсинг mock_orders.json — load_orders() возвращает список MockOrder нужной длины
+2. Трансформация — transform_order() корректно маппит поля (orderType → "main", 
+   externalId генерируется, items преобразуются в CRM-формат)
+3. Маппинг статусов — _map_status() возвращает правильные значения, 
+   для неизвестных → "new"
+4. Маппинг orderMethod — fallback на "shopping-cart" для неизвестных
+5. Upsert логика — mock httpx.Client, проверить что при 201 → "created", 
+   при 400 "already exists" → переходит к edit
+
+Что тестировать в test_sync_to_supabase.py:
+1. Трансформация заказа из RetailCRM формата в Supabase-формат
+2. Логика алерта — заказ > 50000 → алерт, заказ <= 50000 → нет алерта
+3. Mock Supabase client и Telegram API
+
+Требования:
+- Все внешние вызовы (httpx, supabase, telegram) замокать через unittest.mock
+- Не нужен реальный доступ к API — тесты должны работать offline
+- Фикстуры pytest для тестовых данных
+- Добавь pytest в requirements.txt
+
+Выдай код тестов.
 
